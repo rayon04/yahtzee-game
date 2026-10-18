@@ -1,6 +1,6 @@
 'use strict';
 /* Service worker: stores the app on the device for offline use and checks for updates at launch. */
-const VERSION = '2026-10-16-6';
+const VERSION = '2026-10-18-1';
 const PREFIX = 'yahtzee-';
 const CACHE = PREFIX + VERSION;
 
@@ -19,12 +19,16 @@ const PRECACHE = [
 ].map(A);
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE)
-      // always fetch fresh copies, not the browser's HTTP cache
-      .then((cache) => cache.addAll(PRECACHE.map((u) => new Request(u, { cache: 'reload' }))))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    // the page itself must be stored (always a fresh copy, not the browser's HTTP cache);
+    // if that fails, this version is not installed and the previous one keeps working
+    await cache.add(new Request(INDEX, { cache: 'reload' }));
+    // everything else is best effort: one missing icon must never block offline use
+    await Promise.all(PRECACHE.filter((u) => u !== INDEX).map((u) =>
+      cache.add(new Request(u, { cache: 'reload' })).catch(() => {})));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
@@ -64,7 +68,8 @@ async function handle(event, req) {
     return await refresh;
   } catch (err) {
     if (nav) {
-      const fallback = await cache.match(INDEX);
+      // last resort: the page from any stored version
+      const fallback = (await cache.match(INDEX)) || (await caches.match(INDEX, { ignoreSearch: true }));
       if (fallback) return fallback;
     }
     throw err;
