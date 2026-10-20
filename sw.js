@@ -1,6 +1,6 @@
 'use strict';
 /* Service worker: stores the app on the device for offline use and checks for updates at launch. */
-const VERSION = '2026-10-18-6';
+const VERSION = '2026-10-18-11';
 const PREFIX = 'yahtzee-';
 const CACHE = PREFIX + VERSION;
 
